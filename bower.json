@@ -1,0 +1,24 @@
+{
+  "name": "requirejs-nj",
+  "version": "0.0.4",
+  "homepage": "https://github.com/nikitammf/backbone.mixture",
+  "authors": [
+    "Mikita Khatsimtsou <Mikita_Khatsimtsou@epam.com>"
+  ],
+  "description": "Mixin Implementation for Backbone",
+  "main": "backbone.mixture.js",
+  "keywords": [
+    "backbone"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "backbone": "^1.0.1"
+  }
+}
