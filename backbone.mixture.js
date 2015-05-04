@@ -10,18 +10,22 @@
     function noop() {}
     var assign = _.assign || _.extend;
     var Mixture = function () {};
-    Mixture.VERSION = '0.0.1';
-    Mixture.implement = function (implementation) {
+    Mixture.extend = Backbone.Model.extend;
+    Mixture.VERSION = '0.0.2';
+    Mixture.implement = function (implementation, statics) {
         if (!implementation.id) {
             implementation = assign({id: _.uniqueId('mixture')}, implementation);
         }
-        return implementation;
+        return this.extend(implementation, statics);
     };
 
     Mixture.mixin = Backbone.View.mixin = Backbone.Model.mixin = Backbone.Collection.mixin = Backbone.Router.mixin = mixin;
 
     function interceptBefore(object, methodName, fn) {
         var method = object[methodName] || noop;
+        if (!_.isFunction(fn)) {
+            return (object[methodName] = method);
+        }
         return (object[methodName] = function () {
             if (fn.apply(this, arguments) !== false) {
                 return method.apply(this, arguments);
@@ -31,6 +35,9 @@
 
     function interceptAfter(object, methodName, fn) {
         var method = object[methodName] || noop;
+        if (!_.isFunction(fn)) {
+            return (object[methodName] = method);
+        }
         return (object[methodName] = function () {
             var ret = method.apply(this, arguments);
             fn.apply(this, arguments);
@@ -39,39 +46,44 @@
     }
 
     function mixin() {
-        return _.reduce(_.flatten(arguments), function (cls, mixin) {
+        return _.reduce(_.flatten(arguments), function (cls, mixture) {
             var proto = cls.prototype;
             var mixins = proto.__mixins__ = proto.__mixins__ || {};
             var toOmit = ['constructor', 'id', 'beforeHooks', 'afterHooks', 'mixins'];
-            var mixinId = mixin.id;
-            if (mixins[mixinId]) {
+            var implementation = _.isFunction(mixture) ? mixture.prototype || new mixture() : mixture;
+            if (!_.isObject(implementation)) {
                 return cls;
             }
-            if (mixin.mixins) {
-                cls = mixin.apply(cls, mixin.mixins);
+            var mixinId = implementation.id;
+            if (mixinId && mixins[mixinId]) {
+                return cls;
             }
-            var beforeHooks = mixin.beforeHooks;
-            var afterHooks = mixin.afterHooks;
+            if (implementation.mixins) {
+                cls = mixin.apply(cls, implementation.mixins);
+            }
+            var beforeHooks = implementation.beforeHooks;
+            var afterHooks = implementation.afterHooks;
             if (_.isObject(beforeHooks)) {
                 _.each(beforeHooks, function (from, to) {
-                    interceptBefore(proto, to, mixin[from]);
+                    if (to === Number(to)) {
+                        to = from;
+                    }
+                    interceptBefore(proto, to, implementation[from]);
                     toOmit.push(from);
                 });
             }
             if (_.isObject(afterHooks)) {
                 _.each(afterHooks, function (from, to) {
-                    interceptAfter(proto, to, mixin[from]);
+                    if (to === Number(to)) {
+                        to = from;
+                    }
+                    interceptAfter(proto, to, implementation[from]);
                     toOmit.push(from);
                 });
             }
-            mixin = _.omit(mixin, toOmit);
-            if (!beforeHooks && !afterHooks) {
-                assign(proto, mixin);
-            } else {
-                cls = cls.extend(mixin);
-                mixins = cls.prototype.__mixins__ = assign({}, mixins);
-            }
-            mixins[mixinId] = mixin;
+            assign(proto, _.omit(implementation, toOmit));
+            assign(cls, _.omit(mixture, ['extend', 'implement', 'mixin', 'VERSION', '__super__']));
+            mixins[mixinId] = mixture;
             return cls;
         }, this);
     }
